@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     CRAWLER_USER_AGENT: str = "UniversalCompetitorIntelligenceBot/1.0 (+https://github.com/competitor-intelligence; polite research crawler)"
 
     # Search Providers Priority Order: 1. SerpApi -> 2. Tavily -> 3. Serper -> 4. DuckDuckGo
-    SEARCH_PROVIDER: str = "serpapi"
+    SEARCH_PROVIDER: str = "ddgs"
     SERPAPI_API_KEY: str = ""
     serpapi: str = ""
     TAVILY_API_KEY: str = ""
@@ -32,6 +32,16 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_SECRET_KEY: str = ""
     SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+    DATABASE_BACKEND: str = "sqlite"
+    ENABLE_JAVASCRIPT: bool = True
+    MAX_CANDIDATES: int = 8
+    COMPETITOR_CRAWL_TIMEOUT: int = 90
+    MAX_SEARCH_QUERIES: int = 6
+    MAX_RESPONSE_BYTES: int = 5000000
+    API_TOKEN: str = ""
+    JOB_MODE: str = "inline"
+    WEASYPRINT_DLL_DIRECTORIES: str = ""
 
     SQLITE_DB_PATH: str = str(ROOT_DIR / "backend" / "data" / "research.db")
     STORAGE_DIR: str = str(ROOT_DIR / "backend" / "data" / "reports")

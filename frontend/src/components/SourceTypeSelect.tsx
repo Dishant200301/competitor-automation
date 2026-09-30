@@ -7,11 +7,7 @@ interface Props {
 }
 
 const OPTIONS: { value: SourceType; label: string }[] = [
-  { value: 'website', label: 'Website URL' },
-  { value: 'company', label: 'Company Name' },
-  { value: 'social', label: 'Social Profile' },
-  { value: 'product', label: 'Product Name' },
-  { value: 'service', label: 'Service / Offering' }
+  { value: 'website', label: 'Website URL' }
 ];
 
 export const SourceTypeSelect: React.FC<Props> = ({ value, onChange, disabled }) => {

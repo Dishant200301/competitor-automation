@@ -1,166 +1,135 @@
-import os
+import asyncio
+import hmac
 import uuid
-from fastapi import APIRouter, HTTPException, BackgroundTasks, status
-from fastapi.responses import FileResponse, JSONResponse
-
-from app.schemas.research import (
-    ResearchCreateRequest,
-    ResearchCreateResponse,
-    ResearchRunResponse,
-    ResearchSummaryResponse,
-)
+from pathlib import Path
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Depends, Header
+from fastapi.responses import FileResponse
+from app.schemas.research import ResearchCreateRequest
 from app.database.connection import db
 from app.services.research.orchestrator import orchestrator
-from app.services.reports.report_builder import ReportModel
-from app.services.reports.pdf_generator import pdf_generator
-from app.services.reports.google_docs_generator import google_docs_generator
+from app.reports.builder import generate_report
+from app.crawler.url_discovery import normalize_url
+from app.core.security import is_safe_url
 from app.core.config import settings
 
-router = APIRouter(prefix="/api/research", tags=["Research"])
 
-@router.post("", response_model=ResearchCreateResponse, status_code=status.HTTP_201_CREATED)
-async def create_research_run(payload: ResearchCreateRequest, background_tasks: BackgroundTasks):
-    eff_input = payload.get_effective_input()
-    if not eff_input:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="A website URL, social link, company, or product input is required."
-        )
+def authorize(authorization: str = Header(default='')):
+    if settings.API_TOKEN and not hmac.compare_digest(authorization, 'Bearer '+settings.API_TOKEN):
+        raise HTTPException(401, 'API token required')
 
-    eff_type = payload.get_effective_type()
+
+router = APIRouter(prefix='/api/research', tags=['Research'], dependencies=[Depends(authorize)])
+
+
+def valid_id(run_id):
+    try: return str(uuid.UUID(run_id))
+    except ValueError: raise HTTPException(422, 'Invalid research run ID')
+
+
+async def get_run(run_id):
+    run_id = valid_id(run_id)
+    run = await asyncio.to_thread(db.get_run, run_id)
+    if not run: raise HTTPException(404, 'Research run not found')
+    return run
+
+
+@router.post('', status_code=201)
+async def create_research_run(payload: ResearchCreateRequest, background_tasks: BackgroundTasks, sync: bool = False):
+    try:
+        url = normalize_url(payload.get_effective_input())
+        safe, reason = is_safe_url(url)
+        if not safe: raise ValueError(reason)
+    except ValueError as exc: raise HTTPException(400, str(exc))
     run_id = str(uuid.uuid4())
-    db.create_run(
-        run_id=run_id,
-        source_type=eff_type,
-        source_input=eff_input
-    )
+    options = {k:getattr(payload,k) for k in ('company_name','product_url','service_url','social_url') if getattr(payload,k)}
+    try: await asyncio.to_thread(db.create_run, run_id, 'website', url, options)
+    except Exception: raise HTTPException(503, 'Database unavailable or migration not applied')
 
-    background_tasks.add_task(orchestrator.execute_run_async, run_id)
+    if sync:
+        await orchestrator.execute_run_async(run_id)
+        run = await asyncio.to_thread(db.get_run, run_id)
+        if not run or run.get('status') == 'failed':
+            error_msg = (run or {}).get('error_message') or 'Research execution failed'
+            raise HTTPException(500, error_msg)
+        summary_data = await asyncio.to_thread(db.get_run_summary, run_id)
+        validation_data = await asyncio.to_thread(db.get_validation_report, run_id)
+        return {'run': run, **summary_data, 'validation_report': validation_data}
 
-    return ResearchCreateResponse(
-        research_run_id=run_id,
-        run_id=run_id,
-        status="queued",
-        message="Research run initiated successfully."
-    )
+    if settings.JOB_MODE == "inline":
+        background_tasks.add_task(orchestrator.execute_run_async, run_id)
+    return {'research_run_id':run_id,'run_id':run_id,'status':'queued','message':'Research queued'}
 
-@router.get("/{run_id}/status", response_model=ResearchRunResponse)
-async def get_run_status(run_id: str):
-    run = db.get_run(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Research run not found.")
 
-    return ResearchRunResponse(
-        id=run["id"],
-        source_type=run["source_type"],
-        source_input=run["source_input"],
-        status=run["status"],
-        current_step=run.get("current_step"),
-        progress_percentage=run.get("progress_percentage", 0),
-        error_message=run.get("error_message"),
-        google_doc_url=run.get("google_doc_url"),
-        pdf_url=run.get("pdf_url"),
-        created_at=run["created_at"],
-        updated_at=run["updated_at"],
-    )
+@router.post('/execute')
+async def execute_research_run(payload: ResearchCreateRequest):
+    return await create_research_run(payload, BackgroundTasks(), sync=True)
 
-@router.get("/{run_id}/summary", response_model=ResearchSummaryResponse)
-async def get_run_summary(run_id: str):
-    run = db.get_run(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Research run not found.")
 
-    summary = db.get_run_summary(run_id)
-    val_rep = db.get_validation_report(run_id)
+@router.get('/{run_id}/status')
+async def get_run_status(run_id: str): return await get_run(run_id)
 
-    return ResearchSummaryResponse(
-        run=ResearchRunResponse(
-            id=run["id"],
-            source_type=run["source_type"],
-            source_input=run["source_input"],
-            status=run["status"],
-            current_step=run.get("current_step"),
-            progress_percentage=run.get("progress_percentage", 0),
-            error_message=run.get("error_message"),
-            google_doc_url=run.get("google_doc_url"),
-            pdf_url=run.get("pdf_url"),
-            created_at=run["created_at"],
-            updated_at=run["updated_at"],
-        ),
-        company=summary.get("company"),
-        competitors=summary.get("competitors", []),
-        pages_count=summary.get("pages_count", 0),
-        products_count=summary.get("products_count", 0),
-        categories_count=summary.get("categories_count", 0),
-        services_count=summary.get("services_count", 0),
-        keywords_count=summary.get("keywords_count", 0),
-        validation_report=val_rep
-    )
 
-@router.get("/{run_id}/validation")
-async def get_validation_report(run_id: str):
-    val_rep = db.get_validation_report(run_id)
-    if not val_rep:
-        raise HTTPException(status_code=404, detail="Validation report not found for this run.")
-    return val_rep
+@router.get('/{run_id}/summary')
+async def get_summary(run_id: str):
+    run = await get_run(run_id)
+    return {'run':run, **await asyncio.to_thread(db.get_run_summary,run['id']), 'validation_report':await asyncio.to_thread(db.get_validation_report,run['id'])}
 
-@router.post("/{run_id}/generate-pdf")
-async def generate_pdf_report(run_id: str):
-    run = db.get_run(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Research run not found.")
 
-    report_model = ReportModel.from_database(db, run_id)
-    pdf_filename = f"Competitor_Report_{run_id[:8]}.pdf"
-    pdf_filepath = os.path.join(settings.STORAGE_DIR, pdf_filename)
+@router.get('/{run_id}/validation')
+async def get_validation(run_id: str):
+    run = await get_run(run_id)
+    data = await asyncio.to_thread(db.get_validation_report, run['id'])
+    if data is None: raise HTTPException(404,'Validation not available yet')
+    return data
 
-    pdf_generator.generate_pdf(report_model, pdf_filepath)
-    file_size = os.path.getsize(pdf_filepath)
 
-    db.save_report({
-        "run_id": run_id,
-        "report_type": "pdf",
-        "title": f"Competitor Intelligence Report - {run_id[:8]}",
-        "local_path": pdf_filepath,
-        "external_url": f"/api/research/{run_id}/report/pdf",
-        "file_size_bytes": file_size
-    })
-    db.update_run(run_id, pdf_url=f"/api/research/{run_id}/report/pdf")
+@router.get('/{run_id}/report/pdf')
+async def download_pdf(run_id: str):
+    run = await get_run(run_id)
+    path = Path(settings.STORAGE_DIR)/f"Competitor_Report_{run['id']}.pdf"
+    if run['status'] != 'completed' or not path.is_file(): raise HTTPException(409, 'Validated PDF is not available')
+    return FileResponse(path, filename=path.name, media_type='application/pdf')
 
-    return {"download_url": f"/api/research/{run_id}/report/pdf"}
 
-@router.get("/{run_id}/report/pdf")
-async def download_pdf_report(run_id: str):
-    pdf_filename = f"Competitor_Report_{run_id[:8]}.pdf"
-    pdf_filepath = os.path.join(settings.STORAGE_DIR, pdf_filename)
+@router.get('/{run_id}/report/html')
+async def view_html_report(run_id: str):
+    run = await get_run(run_id)
+    path = Path(settings.STORAGE_DIR)/f"Competitor_Report_{run['id']}.html"
+    if run['status'] != 'completed' or not path.is_file(): raise HTTPException(409, 'Validated HTML report is not available')
+    return FileResponse(path, filename=path.name, media_type='text/html')
 
-    if not os.path.exists(pdf_filepath):
-        report_model = ReportModel.from_database(db, run_id)
-        pdf_generator.generate_pdf(report_model, pdf_filepath)
 
-    if not os.path.exists(pdf_filepath):
-        raise HTTPException(status_code=404, detail="PDF report could not be generated.")
-
+@router.get('/{run_id}/report/docx')
+async def download_docx(run_id: str):
+    run = await get_run(run_id)
+    path = Path(settings.STORAGE_DIR)/f"Competitor_Report_{run['id']}.docx"
+    if run['status'] != 'completed': raise HTTPException(409, 'Report is not available yet')
+    if not path.is_file():
+        from app.reports.docx_builder import generate_docx_report
+        try:
+            await asyncio.to_thread(generate_docx_report, db, run['id'], path)
+        except Exception as exc:
+            raise HTTPException(500, f'Failed to generate docx report: {exc}')
     return FileResponse(
-        path=pdf_filepath,
-        filename=pdf_filename,
-        media_type="application/pdf"
+        path,
+        filename=path.name,
+        media_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     )
 
-@router.post("/{run_id}/generate-google-doc")
-async def generate_google_doc_report(run_id: str):
-    run = db.get_run(run_id)
-    if not run:
-        raise HTTPException(status_code=404, detail="Research run not found.")
 
-    report_model = ReportModel.from_database(db, run_id)
-    res = await google_docs_generator.generate_doc(report_model)
-    if not res:
-        raise HTTPException(
-            status_code=503,
-            detail="Google Docs API credentials not configured in backend .env. PDF export is available."
-        )
+@router.post('/{run_id}/generate-pdf')
+async def regenerate(run_id: str):
+    run = await get_run(run_id)
+    try: await asyncio.to_thread(generate_report, db, run['id'], Path(settings.STORAGE_DIR)/f"Competitor_Report_{run['id']}.pdf")
+    except ValueError as exc: raise HTTPException(409,str(exc))
+    return {'download_url':f"/api/research/{run['id']}/report/pdf"}
 
-    doc_url = res.get("google_document_url")
-    db.update_run(run_id, google_doc_url=doc_url)
-    return {"url": doc_url}
+
+@router.get('/{run_id}/dataset/{filename}')
+async def download_dataset(run_id: str, filename: str):
+    run = await get_run(run_id)
+    allowed = {'research.json','products.csv','categories.csv','services.csv','keywords.csv','competitors.csv','qualification_matrix.csv','sources.csv','evidence.csv','social_profiles.csv'}
+    if filename not in allowed: raise HTTPException(404,'Unknown export')
+    path = Path(settings.STORAGE_DIR)/'datasets'/run['id']/filename
+    if not path.is_file(): raise HTTPException(404,'Export not available')
+    return FileResponse(path, filename=filename)

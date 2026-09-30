@@ -1,0 +1,518 @@
+@page {
+  size: A4;
+  margin: 18mm 16mm 18mm 16mm;
+  @top-left {
+    content: "COMPETITOR INTELLIGENCE EXECUTIVE REPORT";
+    font-size: 7.5pt;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: #64748b;
+    font-weight: 600;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 7.5pt;
+    font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+    color: #64748b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Arial, Helvetica, sans-serif;
+  font-size: 8.5pt;
+  line-height: 1.5;
+  color: #1e293b;
+  margin: 0;
+  padding: 0;
+}
+
+.docs-topbar,
+.docs-nav-tabs {
+  display: none;
+}
+
+.doc-tab-section {
+  display: block;
+}
+
+@media screen {
+  body {
+    background-color: #f1f5f9;
+    padding: 0 0 60px 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+
+  .docs-topbar {
+    display: flex;
+    width: 100%;
+    background: #ffffff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 24px;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  .docs-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .docs-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .docs-meta {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .docs-title-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.3;
+  }
+
+  .docs-subtitle-text {
+    font-size: 11px;
+    color: #64748b;
+  }
+
+  .docs-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .docs-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .docs-btn-pdf {
+    background: #0f172a;
+    color: #ffffff;
+    border: 1px solid #0f172a;
+  }
+
+  .docs-btn-pdf:hover {
+    background: #1e293b;
+    color: #ffffff;
+  }
+
+  .docs-btn-print {
+    background: #ffffff;
+    color: #334155;
+    border: 1px solid #cbd5e1;
+  }
+
+  .docs-btn-print:hover {
+    background: #f8fafc;
+    color: #0f172a;
+  }
+
+  .docs-nav-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    max-width: 860px;
+    margin: 16px auto 0;
+    padding: 0 16px;
+    justify-content: center;
+  }
+
+  .tab-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #475569;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .tab-btn:hover {
+    background: #f8fafc;
+    color: #0f172a;
+    border-color: #94a3b8;
+  }
+
+  .tab-btn.active {
+    background: #2563eb;
+    color: #ffffff;
+    border-color: #2563eb;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+  }
+
+  .doc-container {
+    background: #ffffff;
+    max-width: 860px;
+    width: calc(100% - 32px);
+    margin: 16px auto 0;
+    min-height: 1000px;
+    padding: 56px 64px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.05);
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    padding: 0;
+  }
+  .docs-topbar,
+  .docs-nav-tabs {
+    display: none !important;
+  }
+  .doc-container {
+    padding: 0;
+    max-width: 100%;
+    box-shadow: none;
+    border: none;
+    margin: 0;
+  }
+  .doc-tab-section {
+    display: block !important;
+  }
+}
+
+.cover {
+  padding-top: 28mm;
+  padding-bottom: 20mm;
+  page-break-after: always;
+}
+
+.eyebrow {
+  color: #0284c7;
+  font-size: 8.5pt;
+  font-weight: 700;
+  letter-spacing: 1.5pt;
+  text-transform: uppercase;
+  margin-bottom: 5mm;
+}
+
+h1 {
+  font-size: 26pt;
+  line-height: 1.2;
+  color: #0f172a;
+  margin: 0 0 3mm;
+  font-weight: 800;
+}
+
+.subtitle {
+  font-size: 12pt;
+  color: #475569;
+  margin: 0 0 4mm;
+  font-weight: 500;
+}
+
+.target-link {
+  font-size: 9.5pt;
+  margin-bottom: 8mm;
+}
+
+.target-link a {
+  color: #0284c7;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.cover-summary {
+  margin: 8mm 0 10mm;
+  border-top: 2.5px solid #0284c7;
+  padding-top: 6mm;
+}
+
+.summary-title {
+  font-size: 10pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 2mm;
+  text-transform: uppercase;
+  letter-spacing: 0.5pt;
+}
+
+.summary-text {
+  font-size: 9pt;
+  color: #334155;
+  line-height: 1.6;
+  margin: 0 0 5mm;
+}
+
+.stat-pills {
+  margin-top: 4mm;
+}
+
+.pill {
+  display: inline-block;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #1e293b;
+  font-size: 8pt;
+  font-weight: 600;
+  padding: 1.5mm 3.5mm;
+  border-radius: 3mm;
+  margin-right: 2.5mm;
+  margin-bottom: 2.5mm;
+}
+
+.meta-footer {
+  margin-top: 18mm;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 4mm;
+  font-size: 8pt;
+  color: #64748b;
+}
+
+h2 {
+  font-size: 12pt;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 7mm 0 3mm;
+  padding-bottom: 1.5mm;
+  border-bottom: 1.5px solid #0284c7;
+  page-break-after: avoid;
+  text-transform: uppercase;
+  letter-spacing: 0.5pt;
+}
+
+h3 {
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 4.5mm 0 2mm;
+  page-break-after: avoid;
+}
+
+p {
+  margin: 1.5mm 0 2.5mm;
+  orphans: 3;
+  widows: 3;
+}
+
+.highlight-box {
+  background: #f8fafc;
+  border-left: 3px solid #0284c7;
+  padding: 3mm 4mm;
+  border-radius: 2mm;
+  margin: 3mm 0 4mm;
+  font-size: 8.5pt;
+  color: #334155;
+}
+
+.report-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  margin: 3mm 0 5mm;
+  font-size: 8pt;
+}
+
+.report-table thead {
+  display: table-header-group;
+}
+
+.report-table tr {
+  page-break-inside: avoid;
+}
+
+.report-table th,
+.report-table td {
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 2.2mm 3mm;
+  overflow-wrap: anywhere;
+}
+
+.report-table th {
+  background: #f8fafc;
+  color: #0f172a;
+  font-weight: 700;
+  border-top: 1px solid #cbd5e1;
+  border-bottom: 1.5px solid #94a3b8;
+  font-size: 8pt;
+  text-transform: uppercase;
+  letter-spacing: 0.3pt;
+}
+
+.report-table tbody tr:nth-child(even) {
+  background-color: #fbfcfe;
+}
+
+.primary-cell {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+a {
+  color: #0284c7;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 8pt;
+}
+
+.cite {
+  font-size: 7.5pt;
+  color: #0284c7;
+  font-weight: 700;
+  margin-left: 1mm;
+}
+
+.badge {
+  display: inline-block;
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 7pt;
+  font-weight: 700;
+  padding: 0.8mm 2mm;
+  border-radius: 2mm;
+  text-transform: uppercase;
+}
+
+.status-tag {
+  display: inline-block;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 7pt;
+  font-weight: 600;
+  padding: 0.6mm 2mm;
+  border-radius: 1.5mm;
+}
+
+.category-tags {
+  margin: 2mm 0 4mm;
+}
+
+.category-tag {
+  display: inline-block;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 1.2mm 2.8mm;
+  border-radius: 2mm;
+  font-size: 7.5pt;
+  margin-right: 2mm;
+  margin-bottom: 2mm;
+}
+
+.competitors-list {
+  margin-top: 3mm;
+}
+
+.competitor-card {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 3mm;
+  padding: 3.5mm 4.5mm;
+  margin-bottom: 3.5mm;
+  page-break-inside: avoid;
+}
+
+.comp-header {
+  margin-bottom: 1mm;
+}
+
+.comp-title {
+  font-size: 9.5pt;
+  color: #0f172a;
+  margin-right: 2.5mm;
+}
+
+.comp-link {
+  font-size: 8pt;
+  margin-bottom: 1.5mm;
+}
+
+.comp-link a {
+  color: #0284c7;
+  font-weight: 600;
+}
+
+.comp-desc {
+  font-size: 8pt;
+  color: #475569;
+  margin: 1.5mm 0 2mm;
+  line-height: 1.4;
+}
+
+.comp-details {
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 2mm;
+  padding: 2mm 3mm;
+  font-size: 7.5pt;
+  color: #334155;
+  margin-top: 1.5mm;
+}
+
+.comp-details p {
+  margin: 0.8mm 0;
+}
+
+.social-grid {
+  margin: 2mm 0 4mm;
+}
+
+.social-item {
+  margin: 1.5mm 0;
+  font-size: 8pt;
+}
+
+.social-item a {
+  margin-left: 1mm;
+}
+
+.sources-list {
+  margin-top: 2.5mm;
+}
+
+.source-item {
+  margin: 2mm 0;
+  font-size: 7.5pt;
+  page-break-inside: avoid;
+  color: #475569;
+}
+
+.source-num {
+  font-weight: 700;
+  color: #0284c7;
+  margin-right: 1mm;
+}
