@@ -1,39 +1,50 @@
-import os
+import uuid
 import pytest
-from app.services.reports.report_builder import ReportModel
-from app.services.reports.pdf_generator import pdf_generator
-from app.core.config import settings
+from app.database.connection import DatabaseClient
+from app.reports.builder import generate_report, load_report
 
-def test_pdf_generation_creates_valid_file(tmp_path):
-    output_pdf = str(tmp_path / "test_report.pdf")
 
-    model = ReportModel(
-        run_data={"id": "run-12345", "source_type": "website", "source_input": "https://example.com"},
-        company_data={
-            "company_name": "Example Corp",
-            "domain": "example.com",
-            "website": "https://example.com",
-            "industry": "Cloud Infrastructure",
-            "description": "Enterprise cloud services.",
-            "founded_year": "2020",
-            "location": "San Francisco, CA"
-        },
-        competitors=[{
-            "competitor_name": "TestCompetitor One",
-            "website": "https://competitor-one.com",
-            "competitor_type": "Direct",
-            "confidence_level": "HIGH",
-            "reason": "Offers identical cloud infrastructure and targets enterprise software teams.",
-            "evidence_urls": ["https://techradar.com/review/example-vs-one"]
-        }],
-        seo_data={"observations": ["Sitemap verified", "Active blog presence"]},
-        keywords=[{"keyword": "cloud infrastructure", "keyword_type": "Product", "frequency": 12}],
-        products=[{"product_name": "Example Compute", "category": "Cloud"}],
-        services=[{"service_name": "Managed Hosting", "category": "DevOps"}],
-        social_profiles=[{"platform": "LinkedIn", "profile_url": "https://linkedin.com/company/example"}],
-        pages=[{"url": "https://example.com", "page_type": "HOME"}]
-    )
+def persisted(tmp_path, dataset):
+    db=DatabaseClient('sqlite',str(tmp_path/'db.sqlite'))
+    run_id=str(uuid.uuid4()); db.create_run(run_id,'website','https://northloom.example/')
+    db.save_dataset(run_id,dataset)
+    return db,run_id
 
-    result_path = pdf_generator.generate_pdf(model, output_pdf)
-    assert os.path.exists(result_path)
-    assert os.path.getsize(result_path) > 1000  # Valid non-empty PDF file
+
+def test_immutable_database_roundtrip(tmp_path,dataset):
+    db,run_id=persisted(tmp_path,dataset)
+    assert db.get_dataset(run_id)==dataset
+    assert load_report(db,run_id)['company']['industry']=='Fashion & Apparel'
+    with pytest.raises(Exception): db.save_dataset(run_id,dataset)
+
+
+def test_invalid_report_blocked(tmp_path,dataset):
+    dataset['validation']['passed']=False
+    db,run_id=persisted(tmp_path,dataset)
+    with pytest.raises(ValueError): load_report(db,run_id)
+
+
+def test_pdf_generation(tmp_path,dataset):
+    from pypdf import PdfReader
+    db,run_id=persisted(tmp_path,dataset)
+    path=generate_report(db,run_id,tmp_path/'report.pdf')
+    reader=PdfReader(path)
+    text=' '.join(p.extract_text() for p in reader.pages)
+    assert 'North Loom' in text and '42.50' in text
+    assert all(len(p.extract_text().strip())>30 for p in reader.pages)
+    assert len(reader.pages)>=2
+
+
+def test_worker_claim_is_single_use(tmp_path):
+    db=DatabaseClient('sqlite',str(tmp_path/'jobs.db'))
+    run_id=str(uuid.uuid4()); db.create_run(run_id,'website','https://example.com/')
+    assert db.claim_next_run()==run_id
+    assert db.claim_next_run() is None
+
+
+def test_supabase_failure_does_not_fall_back_to_sqlite(tmp_path,monkeypatch):
+    db=DatabaseClient('supabase',str(tmp_path/'must-not-exist.sqlite'))
+    def unavailable(): raise RuntimeError('Supabase unavailable')
+    monkeypatch.setattr(db,'remote',unavailable)
+    with pytest.raises(RuntimeError): db.create_run(str(uuid.uuid4()),'website','https://example.com/')
+    assert not (tmp_path/'must-not-exist.sqlite').exists()

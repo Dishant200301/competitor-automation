@@ -27,10 +27,9 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "competitor-intelligence",
-        "search_chain_priority": ["1_serpapi", "2_tavily", "3_serper", "4_duckduckgo"],
-        "serpapi_configured": bool(settings.effective_serpapi_key),
-        "tavily_configured": bool(settings.TAVILY_API_KEY),
-        "serper_configured": bool(settings.effective_serper_key)
+        "database_backend": settings.DATABASE_BACKEND,
+        "job_mode": settings.JOB_MODE,
+        "search_provider": "serper" if settings.SEARCH_PROVIDER == "serper" else "ddgs"
     }
 
 if __name__ == "__main__":

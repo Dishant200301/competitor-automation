@@ -8,7 +8,6 @@ export interface ResearchRun {
   current_step: string;
   progress_percentage: number;
   error_message?: string;
-  google_doc_url?: string;
   pdf_url?: string;
   created_at: string;
   updated_at: string;
@@ -32,6 +31,20 @@ export interface CompetitorItem {
   deep_extracted?: boolean;
 }
 
+export interface SocialProfileItem {
+  platform: string;
+  profile_url: string;
+  username?: string;
+  association?: string;
+}
+
+export interface KeywordItem {
+  keyword: string;
+  intent: string;
+  intent_type?: string;
+  cluster?: string;
+}
+
 export interface ResearchSummary {
   run: ResearchRun;
   company?: {
@@ -42,6 +55,8 @@ export interface ResearchSummary {
     description: string;
   };
   competitors: CompetitorItem[];
+  social_profiles?: SocialProfileItem[];
+  keywords?: KeywordItem[];
   pages_count: number;
   products_count: number;
   services_count: number;

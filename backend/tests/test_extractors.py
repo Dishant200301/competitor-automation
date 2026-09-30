@@ -1,93 +1,66 @@
-import pytest
-from app.services.extractors.page_classifier import classify_page_url
-from app.services.extractors.page_extractor import extract_structured_page_data
-from app.services.extractors.company_extractor import CompanyExtractor
-from app.services.extractors.product_extractor import ProductExtractor
-from app.services.extractors.service_extractor import ServiceExtractor
+from app.extraction.pages import extract_page
+from app.extraction.catalog import extract_catalog
+from app.evidence.registry import EvidenceRegistry
+from app.classification.business import classify
+from app.validation.engine import validate, validated_projection
 
-def test_page_classification():
-    assert classify_page_url("https://example.com/pricing") == "PRICING"
-    assert classify_page_url("https://example.com/about-us") == "ABOUT"
-    assert classify_page_url("https://example.com/products/analytics") == "PRODUCT"
-    assert classify_page_url("https://example.com/services/consulting") == "SERVICE"
-    assert classify_page_url("https://example.com/case-studies/client-a") == "CASE_STUDY"
-    assert classify_page_url("https://example.com/blog/2026/how-to-grow") == "BLOG"
-    assert classify_page_url("https://example.com/") == "HOME"
 
-def test_structured_page_extraction():
-    sample_html = """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <title>Acme Cloud - Enterprise Analytics</title>
-        <meta name="description" content="Acme Cloud provides high-performance data analytics." />
-        <link rel="canonical" href="https://acme.com/analytics" />
-        <script type="application/ld+json">
-        {
-            "@type": "Product",
-            "name": "Acme Data Engine",
-            "description": "Real-time stream processor"
-        }
-        </script>
-    </head>
-    <body>
-        <h1>Real-time Analytics Engine</h1>
-        <h2>Stream Processing</h2>
-        <p>Analyze petabytes of events with sub-second query latency.</p>
-        <a href="/pricing">View Plans</a>
-        <a href="https://linkedin.com/company/acme-cloud">LinkedIn</a>
-    </body>
-    </html>
-    """
-    data = extract_structured_page_data(
-        url="https://acme.com/analytics",
-        final_url="https://acme.com/analytics",
-        html=sample_html,
-        status_code=200
-    )
+def test_real_product_fields_missing_values_stay_missing(dataset):
+    p = dataset['products'][0]
+    assert p['product_name']=='Linen Shirt'
+    assert p['price']=='42.50'
+    assert p['currency']=='USD'
+    assert p['availability']=='Not found'
+    assert p['sale_price'] is None
+    assert dataset['company']['industry']=='Fashion & Apparel'
+    assert dataset['company']['business_model']=='E-commerce'
+    assert dataset['validation']['passed']
 
-    assert data["title"] == "Acme Cloud - Enterprise Analytics"
-    assert "high-performance" in data["meta_description"]
-    assert "Real-time Analytics Engine" in data["h1"]
-    assert len(data["structured_data"]) == 1
-    assert data["structured_data"][0]["name"] == "Acme Data Engine"
-    assert "https://acme.com/pricing" in data["internal_links"]
-    assert "https://linkedin.com/company/acme-cloud" in data["external_links"]
 
-def test_company_and_product_extraction():
-    pages = [{
-        "url": "https://acme.com",
-        "final_url": "https://acme.com",
-        "page_type": "HOME",
-        "title": "Acme Cloud - Home",
-        "meta_description": "Global leader in real-time enterprise data processing.",
-        "h1": ["Acme Cloud Platform"],
-        "main_text": "Founded in 2021, Acme Cloud builds modern database infrastructure.",
-        "structured_data": [{
-            "@type": "Organization",
-            "name": "Acme Cloud Technologies",
-            "foundingDate": "2021"
-        }]
-    }, {
-        "url": "https://acme.com/products/engine",
-        "final_url": "https://acme.com/products/engine",
-        "page_type": "PRODUCT",
-        "h1": ["Acme Data Engine"],
-        "h2": ["Sub-second latency", "Zero downtime"],
-        "meta_description": "High performance SQL query engine.",
-        "structured_data": [{
-            "@type": "Product",
-            "name": "Acme Data Engine",
-            "description": "High performance SQL query engine."
-        }]
-    }]
+def test_collection_is_not_a_product():
+    p=extract_page('<h1>Linen Shirts</h1><a href="/collections/linen">Linen</a>', 'https://shop.example/collections/linen')
+    data=extract_catalog([p],EvidenceRegistry())
+    assert not data['products']
+    assert data['categories'][0]['category_name']=='Linen'
 
-    co_extractor = CompanyExtractor()
-    company = co_extractor.extract_from_pages(pages, "https://acme.com")
-    assert company["company_name"] == "Acme Cloud Technologies"
-    assert company["founded_year"] == "2021"
 
-    prod_extractor = ProductExtractor()
-    products = prod_extractor.extract_from_pages(pages)
-    assert len(products) >= 1
-    assert products[0]["product_name"] == "Acme Data Engine"
+def test_unknown_site_never_defaults_to_software_or_india():
+    p=extract_page('<h1>Welcome</h1>', 'https://example.com/')
+    c=classify([p],EvidenceRegistry())
+    assert c['industry']=='Not verified'
+    assert c['geographic_market']=='Not verified'
+    assert c['business_model']=='Not verified'
+
+
+def test_zero_products_with_product_links_fails(dataset):
+    dataset['products']=[]
+    assert not validate(dataset)['passed']
+
+
+def test_corrupted_evidence_fails(dataset):
+    dataset['products'][0]['price']='99999'
+    assert not validate(dataset)['passed']
+
+
+def test_unlinked_claim_is_not_in_report(dataset):
+    dataset['company']['revenue']='1 billion'
+    assert 'revenue' not in validated_projection(dataset)['company']
+
+
+def test_no_default_currency():
+    p=extract_page('<script type="application/ld+json">{"@type":"Product","name":"Item","offers":{"price":5}}</script>','https://example.com/item')
+    data=extract_catalog([p],EvidenceRegistry())
+    assert data['products'][0]['currency']=='Not found'
+    assert data['price_range_summary']=='Not publicly disclosed'
+
+
+def test_second_industry():
+    p=extract_page('<h1>Software as a service</h1><p>Software API database CRM developer tools for developers and businesses</p>','https://cloud.example/')
+    c=classify([p],EvidenceRegistry())
+    assert c['industry']=='Technology & Software'
+    assert c['business_model']=='SaaS'
+
+
+def test_filter_urls_are_not_extra_categories():
+    page=extract_page('<a href="/collections/linen">Linen</a><a href="/collections/linen?page=2">2</a><a href="/collections/linen?filter.size=M">M</a>','https://shop.example/')
+    assert len(extract_catalog([page],EvidenceRegistry())['categories'])==1

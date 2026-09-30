@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{{ d.company.company_name }} - Competitor Intelligence Report</title>
+  <base target="_blank">
+  {% if css %}
+  <style>
+    {{ css|safe }}
+  </style>
+  {% endif %}
+</head>
+<body>
+
+<!-- Google Docs-style Header Bar (Screen Only) -->
+<header class="docs-topbar">
+  <div class="docs-brand">
+    <div class="docs-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="#2563eb"/>
+        <path d="M14 2v6h6" fill="#93c5fd"/>
+        <line x1="8" y1="13" x2="16" y2="13" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="8" y1="17" x2="14" y2="17" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="docs-meta">
+      <div class="docs-title-text">{{ d.company.company_name }} - Competitor Intelligence Report</div>
+      <div class="docs-subtitle-text">Document View &bull; Verified Online Intelligence</div>
+    </div>
+  </div>
+  <div class="docs-actions">
+    <a href="/api/research/{{ run_id }}/report/pdf" target="_blank" rel="noopener noreferrer" class="docs-btn docs-btn-pdf">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span>Open PDF</span>
+    </a>
+    <button type="button" onclick="window.print()" class="docs-btn docs-btn-print">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <span>Print</span>
+    </button>
+  </div>
+</header>
+
+<!-- Interactive Tab Navigation (Screen Only) -->
+<nav class="docs-nav-tabs" aria-label="Report Sections">
+  <button type="button" class="tab-btn active" data-tab="all" onclick="selectDocTab('all')">
+    <span>All Pages</span>
+  </button>
+  <button type="button" class="tab-btn" data-tab="tab-brief" onclick="selectDocTab('tab-brief')">
+    <span>Executive Brief</span>
+  </button>
+  {% if d.products or d.categories %}
+  <button type="button" class="tab-btn" data-tab="tab-catalog" onclick="selectDocTab('tab-catalog')">
+    <span>Catalog &amp; Offerings</span>
+  </button>
+  {% endif %}
+  {% if d.competitors %}
+  <button type="button" class="tab-btn" data-tab="tab-competitors" onclick="selectDocTab('tab-competitors')">
+    <span>Competitors ({{ d.competitors|length }})</span>
+  </button>
+  {% endif %}
+  {% if d.keywords %}
+  <button type="button" class="tab-btn" data-tab="tab-keywords" onclick="selectDocTab('tab-keywords')">
+    <span>Keywords ({{ d.keywords|length }})</span>
+  </button>
+  {% endif %}
+  {% if d.social_profiles and d.social_profiles|length > 0 %}
+  <button type="button" class="tab-btn" data-tab="tab-social" onclick="selectDocTab('tab-social')">
+    <span>Social Channels</span>
+  </button>
+  {% endif %}
+  {% if d.sources %}
+  <button type="button" class="tab-btn" data-tab="tab-sources" onclick="selectDocTab('tab-sources')">
+    <span>Evidence &amp; Sources</span>
+  </button>
+  {% endif %}
+</nav>
+
+<div class="doc-container">
+
+<section class="doc-tab-section" id="tab-brief">
+  <div class="cover">
+    <div class="eyebrow">COMPETITIVE INTELLIGENCE REPORT</div>
+    <h1>{{ d.company.company_name }}</h1>
+    
+    {% if d.company.industry and d.company.industry != 'Not verified' %}
+    <p class="subtitle">{{ d.company.industry }}{% if d.company.business_model and d.company.business_model != 'Not verified' %} | {{ d.company.business_model }}{% endif %}</p>
+    {% endif %}
+    
+    {% if d.company.website %}
+    <p class="target-link">
+      <a href="{{ safe_url(d.company.website) }}" target="_blank" rel="noopener noreferrer">{{ d.company.website }}</a>
+    </p>
+    {% endif %}
+    
+    <div class="cover-summary">
+      <div class="summary-title">Executive Brief</div>
+      <p class="summary-text">
+        {{ d.company.description|default('Verified competitive landscape, product catalog extraction, and market positioning analysis.') }}
+      </p>
+      
+      <div class="stat-pills">
+        <span class="pill">Crawl Sample: {{ d.pages|length }} pages</span>
+        {% if d.products %}<span class="pill">Discovered Products: {{ d.products|length }}</span>{% endif %}
+        {% if d.competitors %}<span class="pill">Verified Competitors: {{ d.competitors|length }}</span>{% endif %}
+        {% if d.keywords %}<span class="pill">Search Hypotheses: {{ d.keywords|length }}</span>{% endif %}
+      </div>
+    </div>
+    
+    <div class="meta-footer">
+      <span>Date: {{ d.company.date_checked[:10] }}</span> | 
+      <span>Run ID: {{ run_id[:8] }}</span> | 
+      <span>Persistence: {{ d.persistence_backend }}</span>
+    </div>
+  </div>
+</section>
+
+<div class="content-body">
+  {% if d.products or d.categories %}
+  <section class="doc-tab-section" id="tab-catalog">
+    <h2>01 / Discovered Catalog &amp; Offerings</h2>
+    
+    {% if d.price_range_summary and d.price_range_summary != 'Not publicly disclosed' %}
+    <div class="highlight-box">
+      <strong>Price Range Analysis:</strong> {{ d.price_range_summary }}
+    </div>
+    {% endif %}
+
+    {% if d.products %}
+    <h3>Sampled Products</h3>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="width: 52%;">Product Name</th>
+          <th style="width: 24%;">Price / Currency</th>
+          <th style="width: 24%;">Availability</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in d.products %}
+        <tr>
+          <td class="primary-cell">{{ p.product_name }} {{ cite(p) }}</td>
+          <td>{{ p.price|default('Not disclosed') }} {{ p.currency|default('') }}</td>
+          <td><span class="status-tag">{{ p.availability|default('Available')|replace('https://schema.org/','') }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if d.categories %}
+    <h3>Categories &amp; Collections</h3>
+    <div class="category-tags">
+      {% for c in d.categories %}
+      <span class="category-tag"><a href="{{ safe_url(c.url) }}" target="_blank" rel="noopener noreferrer">{{ c.category_name }}</a></span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if d.competitors %}
+  <section class="doc-tab-section" id="tab-competitors">
+    <h2>02 / Verified Competitors</h2>
+    <p class="muted">Competitors independently crawled and qualified against offering and industry overlap:</p>
+    
+    <div class="competitors-list">
+      {% for c in d.competitors %}
+      <div class="competitor-card">
+        <div class="comp-header">
+          <span class="comp-title"><strong>{{ c.competitor_name }}</strong></span>
+          <span class="badge">{{ c.competitor_type }}</span>
+        </div>
+        <div class="comp-link">
+          <a href="{{ safe_url(c.website or c.domain) }}" target="_blank" rel="noopener noreferrer">{{ c.domain }}</a>
+        </div>
+        {% if c.description and c.description not in ['Not found', 'Not verified', ''] %}
+        <p class="comp-desc">{{ c.description }}</p>
+        {% endif %}
+        <div class="comp-details">
+          <p><strong>Discovered Offerings:</strong> {{ c.products[:6]|display }}</p>
+          {% if c.pricing_model and c.pricing_model != 'Not publicly disclosed' %}
+          <p><strong>Pricing:</strong> {{ c.pricing_model }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if d.keywords %}
+  <section class="doc-tab-section" id="tab-keywords">
+    <h2>03 / Keywords &amp; Search Intent</h2>
+    <p class="muted">High-relevance product search queries derived from target website offerings:</p>
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th style="width: 54%;">Search Hypothesis</th>
+          <th style="width: 26%;">Inferred Intent</th>
+          <th style="width: 20%;">Intent Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for k in d.keywords[:15] %}
+        <tr>
+          <td class="primary-cell">{{ k.keyword }} {{ cite(k) }}</td>
+          <td>{{ k.intent }}</td>
+          <td><span class="status-tag">{{ k.intent_type|default('Product') }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  {# Only display official social media if actually found on the target website #}
+  {% if d.social_profiles and d.social_profiles|length > 0 %}
+  <section class="doc-tab-section" id="tab-social">
+    <h2>04 / Official Social Media Channels</h2>
+    <p class="muted">Verified official links linked directly from the target website:</p>
+    <div class="social-grid">
+      {% for p in d.social_profiles %}
+      <div class="social-item">
+        <strong>{{ p.platform }}:</strong> 
+        <a href="{{ safe_url(p.profile_url) }}" target="_blank" rel="noopener noreferrer">{{ p.profile_url }}</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {% if d.sources %}
+  <section class="doc-tab-section" id="tab-sources">
+    <h2>05 / Verified Evidence &amp; Sources</h2>
+    <p class="muted">Traceable public web observations supporting this report:</p>
+    <div class="sources-list">
+      {% for s in d.sources[:12] %}
+      <div class="source-item">
+        <span class="source-num">[{{ loop.index }}]</span> 
+        <strong>{{ s.page_title|default('Source Page') }}</strong> &mdash; 
+        <a href="{{ safe_url(s.url) }}" target="_blank" rel="noopener noreferrer">{{ s.url }}</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+</div>
+
+<script>
+  function selectDocTab(tabId) {
+    var buttons = document.querySelectorAll('.tab-btn');
+    buttons.forEach(function(btn) {
+      if (btn.getAttribute('data-tab') === tabId) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    var sections = document.querySelectorAll('.doc-tab-section');
+    sections.forEach(function(sec) {
+      if (tabId === 'all' || sec.id === tabId) {
+        sec.style.display = 'block';
+      } else {
+        sec.style.display = 'none';
+      }
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>

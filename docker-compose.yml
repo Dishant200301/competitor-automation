@@ -1,0 +1,26 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports: ["127.0.0.1:8000:8000"]
+    env_file: .env
+    environment:
+      DATABASE_BACKEND: sqlite
+      JOB_MODE: worker
+      STORAGE_DIR: /workspace/backend/data/reports
+    volumes: ["research-data:/workspace/backend/data"]
+    restart: unless-stopped
+  worker:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "worker.py"]
+    env_file: .env
+    environment:
+      DATABASE_BACKEND: sqlite
+      STORAGE_DIR: /workspace/backend/data/reports
+    volumes: ["research-data:/workspace/backend/data"]
+    restart: unless-stopped
+volumes:
+  research-data:
