@@ -2,6 +2,10 @@ from typing import List, Dict, Optional, Any
 from pydantic import BaseModel, Field
 
 class ResearchCreateRequest(BaseModel):
+    company_name: Optional[str] = None
+    product_url: Optional[str] = None
+    service_url: Optional[str] = None
+    social_url: Optional[str] = None
     source_type: Optional[str] = Field(default="website", description="website, social, company, product, or service")
     source_input: Optional[str] = Field(default=None, description="Target URL, company, handle, or product")
     # Flexible field aliases
@@ -33,7 +37,6 @@ class ResearchRunResponse(BaseModel):
     current_step: Optional[str] = None
     progress_percentage: int = 0
     error_message: Optional[str] = None
-    google_doc_url: Optional[str] = None
     pdf_url: Optional[str] = None
     created_at: str
     updated_at: str
